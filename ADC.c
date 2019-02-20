@@ -1,24 +1,35 @@
 
 #include "MKL27Z644.h"
-#include <stdio.h>
 
-unsigned short ADC_read16b();
-void Init_ADC();
+#define SUCCESS 0
+#define ERROR 1
+
+typedef unsigned char uint_8;
+uint_8 ADC_bfnReadADC(uint_8 bChannel,uint_8 * bpADCValue);
+void ADC_vfnDriverInit(void);
 
 
 int main(void) {
     volatile static float i = 0 ;
-    Init_ADC();
+    uint_8 * pointer;
+    uint_8 data=0;
+    pointer=&data;
+    uint_8 chanelito=0b11010;
+    ADC_vfnDriverInit();
     while(1) {
-        i=ADC_read16b();
-        i=((float)i-32)*(5/9);
-        printf("Temperatura: %i\n",i);
+        i=ADC_bfnReadADC(chanelito,pointer);
+        if(i==0){
+        	i++;
+        }
+        else{
+        	i--;
+        }
     }
     return 0 ;
 }
 
 
-void Init_ADC(){
+void ADC_vfnDriverInit(void){
 	SIM->SCGC6 |= SIM_SCGC6_ADC0_MASK; //Enciende el ADC0
 	SIM->SOPT7=SIM_SOPT7_ADC0PRETRGSEL(0);//trigger select
 	ADC0->SC1[0]=ADC_SC1_DIFF(0); //Single-ended
@@ -33,9 +44,16 @@ void Init_ADC(){
 	ADC0->SC3=ADC_SC3_AVGS(3); //16 samples averaged
 }
 
-unsigned short ADC_read16b(){
-	ADC0->SC1[0]=ADC_SC1_ADCH(0b11010); //Selecciona el sensor de temperatura.
-	while(ADC0->SC2&ADC_SC2_ADACT_MASK);
-	while(!(ADC0->SC1[0]&ADC_SC1_COCO_MASK));
-	return ADC0->R[0];
+uint_8 ADC_bfnReadADC(uint_8 bChannel,uint_8 * bpADCValue){
+	ADC0->SC1[0]=ADC_SC1_ADCH(bChannel); //Selecciona el sensor de temperatura.
+	while((ADC0->SC2&ADC_SC2_ADACT_MASK));
+	while(!(ADC0->SC1[0]&ADC_SC1_COCO_MASK ));
+	if(ADC_SC1_COCO_MASK)
+	{
+		*bpADCValue=ADC0->R[0];
+		return SUCCESS;
+
+	}
+	return ERROR;
 }
+
